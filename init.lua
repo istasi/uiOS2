@@ -1,6 +1,6 @@
 _G ['github_repo'] = 'istasi/uiOS2';
 _G ['github_branch'] = 'master';
-_G ['github_url'] = 'https://raw.githubusercontent.com';
+_G ['github_url'] = 'https://rawgit.com';
 
 _G ['path'] = _G ['github_url'] ..'/'.. _G ['github_repo'] ..'/'.. _G ['github_branch'];
 

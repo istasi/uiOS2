@@ -103,14 +103,15 @@ local function download ( url, _file )
 	local continue = true
 
 	while continue == true do
-		local line = cinvoke ( internet, 'read', urlHandle )
+        local line = urlHandle.read ( 1024 )
+
 		if line == nil then
 			continue = false
 		else
 			content = content .. line
 		end
 	end
-	cinvoke ( internet, 'close', urlHandle )
+	urlHandle.close ()
 
 	if _file == false then
 		return content
@@ -143,14 +144,14 @@ local function loadfile ( _file, ... )
 	local continue = true
 
 	while continue == true do
-		local line = cinvoke ( myAddress, 'read', fileHandle, 1024 )
+		local line = fileHandle.read ( 1024 )
 		if line == nil then
 			continue = false
 		else
 			content = content .. line
 		end
 	end
-	cinvoke ( myAddress, 'close', fileHandle )
+	fileHandle.close ()
 
 	local func, reason = load ( content, '=' .. _file, 't', _G )
 	if type(func) ~= 'function' or reason ~= nil then
@@ -184,7 +185,6 @@ end
 
 -- Make sure we got the json lib so we can parse the response from github
 status.message:write ( 'Loading json.lua :|' )
-print ( myAddress )
 if cinvoke ( myAddress, 'exist', '/lib/json.lua' ) == false then
     download ( repo ..'/lib/json.lua' )
 end
