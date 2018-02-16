@@ -184,8 +184,8 @@ end
 
 -- Make sure we got the json lib so we can parse the response from github
 status.message:write ( 'Loading json.lua' )
+print ( myAddress )
 if cinvoke ( myAddress, 'exist', '/lib/json.lua' ) == false then
-    print ( 'here' )
     download ( repo ..'/lib/json.lua' )
 end
 local json = loadfile ('/lib/json.lua')
