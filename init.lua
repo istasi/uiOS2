@@ -9,7 +9,7 @@ address = address or computer.getBootAddress ();
 
 local handle = nil
 if address ~= computer.getBootAddress () then
-	handle = component.invoke ( address, 'request', _G ['path'] ..'/boot/init.lua' );
+	handle = component.invoke ( address, 'request', _G ['path'] ..'/boot/init.lua?'.. os.time () );
 else
 	handle = component.invoke ( address, 'open', '/boot/init.lua' );
 end

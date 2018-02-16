@@ -4,6 +4,8 @@ local pairs,ipairs,type = pairs,ipairs,type
 local insert,remove = table.insert,table.remove
 local tostring = tostring
 
+local urlOpts = '?'.. os.time ()
+
 
 local myAddress = computer.getBootAddress ()
 local gpu = clist ( 'gpu',true ) ()
