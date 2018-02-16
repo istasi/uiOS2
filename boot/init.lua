@@ -182,7 +182,17 @@ local function mkdir ( path )
 	end
 end
 
+-- Make sure we got the json lib so we can parse the response from github
+status.message:write ( 'Loading json.lua' )
+if cinvoke ( myAddress, 'exist', '/lib/json.lua' ) == false then
+    download ( repo ..'/lib/json.lua' )
+end
+local json = loadfile ('/lib/json.lua')
+
+--[[
 status.message:write ( 'Fetching current version.db' .. (urlOpts or '') )
+
+
 local content = download ( repo .. 'config/version.db', false )
 if content ~= false then
 	local function p ( content )
@@ -361,3 +371,4 @@ for i,line in ipairs ( lines ) do
 end
 
 stall ()
+]]

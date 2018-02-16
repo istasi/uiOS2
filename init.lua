@@ -1,13 +1,15 @@
-_G ['repo'] = 'istasi/uiOS2';
-_G ['branch'] = 'master';
-_G ['url'] = 'https://raw.githubusercontent.com';
+_G ['github_repo'] = 'istasi/uiOS2';
+_G ['github_branch'] = 'master';
+_G ['github_url'] = 'https://raw.githubusercontent.com';
+
+_G ['path'] = _G ['github_url'] ..'/'.. _G ['github_repo'] ..'/'.. _G ['github_branch'];
 
 local address = component.list ('internet', true) ();
 address = address or computer.getBootAddress ();
 
 local handle = nil
 if address ~= computer.getBootAddress () then
-	handle = component.invoke ( address, _G['url'] ..'/'.. _G ['repo'] ..'/'.. _G ['branch'] ..'/boot/init.lua' );
+	handle = component.invoke ( address, 'request', _G ['path'] ..'/boot/init.lua' );
 else
 	handle = component.invoke ( address, 'open', '/boot/init.lua' );
 end
@@ -16,7 +18,7 @@ local content = '';
 local continue = true;
 
 while continue == true do
-	local line = component.invoke ( address, 'read', handle, 1024 );
+	local line = handle.read ( 1024 );
 
 	if line == nil then
 		continue = false
@@ -24,7 +26,7 @@ while continue == true do
 		content = content .. line
 	end
 end
-component.invoke ( address, 'close', handle );
+handle.close ()
 
 if address ~= computer.getBootAddress () then
 	local address = computer.getBootAddress ()
