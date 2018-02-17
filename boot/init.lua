@@ -146,7 +146,8 @@ local function loadfile ( _file, ... )
 	local continue = true
 
 	while continue == true do
-		local line = fileHandle.read ( 1024 )
+        local line = cinvoke ( myAddress, 'read', fileHandle, 1024 )
+
 		if line == nil then
 			continue = false
 		else
@@ -189,7 +190,7 @@ end
 status.message:write ( 'Loading json.lua' )
 print ('v1')
 if cinvoke ( myAddress, 'exists', '/lib/json.lua' ) == false then
-    download ( repo ..'/lib/json.lua' )
+    download ( path ..'/lib/json.lua' )
 end
 local json = loadfile ('/lib/json.lua')
 
