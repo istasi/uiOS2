@@ -306,7 +306,7 @@ for i, _file in ipairs ( update ) do
 
     status.message:write ( _file )
 
-    path = "/".. _file:match("(.*)/[^/]*")
+    path = "/".. ('/'.._file):match("(.*)/[^/]*")
     if cache [ path ] == nil then
         cache [ path ] = download ( 'https://api.github.com/repos/'.. github_repo ..'/contents'.. path ..'?ref='.. github_branch, false )
         print ( cache [ path ] )
