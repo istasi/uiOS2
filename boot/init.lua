@@ -4,9 +4,6 @@ local pairs,ipairs,type = pairs,ipairs,type
 local insert,remove = table.insert,table.remove
 local tostring = tostring
 
-local urlOpts = '?'.. os.time ()
-
-
 local myAddress = computer.getBootAddress ()
 local gpu = clist ( 'gpu',true ) ()
 screen = clist ( 'screen',true ) ()
@@ -185,6 +182,24 @@ local function mkdir ( path )
 		end
 	end
 end
+local function purgeEmptyDirectory ( path )
+    if path:sub(1,1) ~= '/' then
+        path = '/'.. path
+    end
+
+    local continue = true
+    while continue == true do
+        path = path:match ('(.-)/[^/]*/?$')
+
+        local list = cinvoke ( myAddress, 'list', path )
+        if type (list) == 'table' and #list == 0 then
+            cinvoke ( myAddress, 'remove', path )
+        end
+
+        if path:len () < 1 or path == '.' then continue = false end
+    end
+end
+
 
 -- Make sure we got the json lib so we can parse the response from github
 if cinvoke ( myAddress, 'exists', '/lib/json.lua' ) == false then
@@ -195,188 +210,101 @@ end
 
 status.message:write ( 'Loading json.lua' )
 local json = loadfile ('/lib/json.lua')
-print (json)
 
---[[
-status.message:write ( 'Fetching current version.db' .. (urlOpts or '') )
+status.message:write ( 'Checking for updates' );
+local github = download ('https://api.github.com/repos/'.. _G ['github_repo'] ..'/git/trees/'.. _G ['github_branch'] ..'?recursive=1', false )
+github = json.decode ( github ).tree
 
+-- Build local version object so we can check which files we need to update
+local version = {};
+if cinvoke ( myAddress, 'exists', '/lib/version.db' ) == false then
+    for k, v in pairs ( github ) do
+        if v.type == "blob" then
+            version [ v.path ] = 'download'
+        end
+    end
+else
+    local handle = cinvoke ( myAddress, 'open', '/lib/version.db', 'r' )
 
-local content = download ( repo .. 'config/version.db', false )
-if content ~= false then
-	local function p ( content )
-		local o = {}
-		for line in content:gmatch ('([^\n]*)\n?') do
-			local key, value = line:match ('([^:]*) ?: ?(.*)')
-			if key ~= nil then
-				o [key] = value
-			end
-		end
+    local content = ''
+    local continue = true
 
-		return o
-	end
-	local function s ( content )
-		if cinvoke ( myAddress, 'exists', '/config/' ) == false then
-			cinvoke ( myAddress, 'makeDirectory', '/config/' )
-		end
+    while continue == true do
+        local line = cinvoke ( myAddress, 'read', handle, 1024 )
 
-		local h = cinvoke ( myAddress, 'open', '/config/version.db', 'w' )
-		cinvoke ( myAddress, 'write', h, content )
-		cinvoke ( myAddress, 'close', h )
-	end
-	local function g ()
-		if cinvoke ( myAddress, 'exists', '/config/' ) == false then return '' end
+        if line == nil then
+            continue = false
+        else
+            content = content .. line
+        end
+    end
+    cinvoke ( myAddress, 'close', handle )
 
-		local h = cinvoke ( myAddress, 'open', '/config/version.db', 'r' )
+    -- Parse the version.db file into something easy to handle
+    for line in content:gmatch ('([^\n]*)\n?') do
+        local key, value = line:match ('([^:]*) ?: ?(.*)')
 
-		local content = ''
-		local c = true
-
-		while c == true do
-			local l = cinvoke ( myAddress, 'read', h, 1024 )
-			if l == nil then
-				c = false
-			else
-				content = content .. l
-			end
-		end
-		cinvoke ( myAddress, 'close', h )
-
-		return content
-	end
-
-	status.message:write ( 'Checking for updates' )
-	local offline = p( g() ) -- yes, it most certainly is ugly.
-	local online = p(content)
-
-	local list = {}
-	for file, date in pairs ( online ) do
-		if (offline [file] == nil or offline[file] < date) or cinvoke ( myAddress, 'exists', file ) == false then
-			insert ( list, file )
-		end
-
-		offline [file] = nil
-	end
-
-	local function cp ( path )
-		local continue = true
-		while continue == true do
-			path = path:match ('(.-)/[^/]*/?$')
-
-			local l = cinvoke ( myAddress, 'list', path )
-			if type(l) == 'table' and #l == 0 then 
-				cinvoke ( myAddress, 'remove', path )
-			end
-
-			if path:len () < 1 or path == '.' then continue = false end
-		end
-
-		return true
-	end
-
-	status.message:write ( 'Cleaning up' )
-	for file,_ in pairs (offline) do
-		status.message:write ( 'Removing ' .. file:match ('([^/]*)$') )
-
-		if cinvoke ( myAddress, 'exists', file ) == true then
-			cinvoke ( myAddress, 'remove', file )
-		end
-		cp (file)
-	end
-
-	s(content)
-
-	status.bar:clear ()
-
-	for i, _file in ipairs ( list ) do
-		local path = ''
-		local bits = {}
-
-		for bit in _file:gmatch ( '([^%/]*/?)' ) do
-			path = path .. bit
-			
-			if path:match ('%/$') then
-				if path:sub(1,1) == '/' then path = path:sub(2) end
-
-				if cinvoke ( myAddress, 'exists', path ) == false then
-					mkdir ( path )
-				end
-			end
-		end
-
-		status.message:write ( _file )
-		download ( repo .. _file, _file )
-		status.bar:set ( i / #list )
-	end
-end
-_G ['repo'] = nil
-
-status.message:write ( 'loading system' )
-if cinvoke ( myAddress, 'exists', 'boot/load' ) == false then
-	clear ()
-	status.message:write ( 'Error while loading system: No files to load' )
-
-	stall ()
+        if key ~= nil then
+            version [ key ] = value
+        end
+    end
 end
 
-status.bar.abColor = 0x009900
-local list = cinvoke ( myAddress, 'list', 'boot/load' )
-if type(list) ~= 'table' then
-	clear ()
-	status.message:write ( 'Error while attempting to list: boot/load' )
+-- Loop though the github object to see where the SHA doesnt match local version
+local update = {}
+for file, sha in pairs ( github ) do
+    if (version [ file ] == nil or version [ file ] ~= sha) or cinvoke ( myAddress, 'exists', file ) == false then
+        insert ( update, file )
+    end
 
-	stall ()
+    -- Mark which files exists on github, as the ones left over needs to be deleted
+    version [ file ] = nil
 end
 
-for i, _file in ipairs (list) do
-	_G [ _file:match( '(.-)%.lua') ] = loadfile ( 'boot/load/' .. _file )
-	status.bar:set ( i / #list )
+status.message:write ( 'Cleaning up' )
+status.bar:clear ()
+
+local length = 0
+for _ in pairs ( version ) do
+    length = length + 1
 end
 
-status.message:write ( 'Starting system' )
-local reason = loadfile ( 'start.lua' )
+local at = 0
+for file,_ in pairs ( version ) do
+    at = at + 1
 
-gpu = clist( 'gpu', true ) ()
-if type(reason) == 'table' then
-	if type(reason [1]) == 'number' then reason [1] = 'Process id: ' .. reason [1] end
-	reason = table.concat ( reason, ', ' )
+    local procent = (at / length) * 100
+    status.bar:set ( procent )
+
+    -- Remove file if it exists
+    if cinvoke ( myAddress, 'exists', file ) == true then
+        cinvoke ( myAddress, 'remove', file )
+    end
+
+    -- Regardless of whenever the file exists, we need to make sure we dont leave behind empty folders
+    purgeEmptyDirectory ( file )
 end
 
-if type(reason) ~= 'string' then
-	reason = 'System stopped unexpectedly' 
+status.message:write ('Downloading updates')
+status.bar:clear ()
+
+for i, _file in pairs ( list ) do
+    local path = ''
+    local bits = {}
+
+    for bit in _file:gmatch ( '([^%/]*/?)' ) do
+        path = path .. bit
+        
+        if path:match ('%/$') then
+            if path:sub(1,1) == '/' then path = path:sub(2) end
+
+            if cinvoke ( myAddress, 'exists', path ) == false then
+                mkdir ( path )
+            end
+        end
+    end
+
+    status.message:write ( _file )
+    download ( repo .. _file, _file )
+    status.bar:set ( i / #list )
 end
-
-cinvoke ( gpu, 'setBackground', 0x000000 )
-clear ()
-
-local lines = {}
-insert ( lines, "system returned: " )
-for line in reason:gmatch ( '([^\n]*)\n?' ) do
-	insert ( lines, line )
-end
-if #lines < 2 then insert ( lines, reason ) end
-
-local longest = 1
-for _,line in ipairs ( lines ) do
-	longest = math.max ( longest, line:len () )
-end
-
-cinvoke ( gpu, 'setForeground', 0xFF0000 )
-local size = ({cinvoke ( gpu, 'getResolution' )})
-if size == nil then
-	cinvoke ( gpu, 'bind', clist('screen',true)())
-	size = ({cinvoke( gpu, 'getResolution')})
-end
-if size == nil or size[1] == nil or size[2] == nil then size = {80,25} end -- Retarded check.
-
-local x = size[1] / 2
-x = x - (longest / 2)
-
-local y = size[2] / 2
-y = y - (#lines / 2)
-
-for i,line in ipairs ( lines ) do
-	cinvoke ( gpu, 'set', x,y + i, tostring(line:gsub('%\t','  ')) )
-end
-
-stall ()
-]]
