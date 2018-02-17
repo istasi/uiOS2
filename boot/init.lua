@@ -331,3 +331,5 @@ end
 local handle = cinvoke ( myAddress, 'open', '/lib/version.db', 'w' )
 cinvoke ( myAddress, 'write', handle, content )
 cinvoke ( myAddress, 'close', handle )
+
+print ( 'works?' )
