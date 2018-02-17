@@ -154,7 +154,7 @@ local function loadfile ( _file, ... )
 			content = content .. line
 		end
 	end
-	fileHandle.close ()
+	cinvoke ( myAddress, 'close', fileHandle )
 
 	local func, reason = load ( content, '=' .. _file, 't', _G )
 	if type(func) ~= 'function' or reason ~= nil then
@@ -187,12 +187,15 @@ local function mkdir ( path )
 end
 
 -- Make sure we got the json lib so we can parse the response from github
-status.message:write ( 'Loading json.lua' )
-print ('v1')
 if cinvoke ( myAddress, 'exists', '/lib/json.lua' ) == false then
+    status.message:write ( 'Downloading json.lua' )
+
     download ( path ..'/lib/json.lua', '/lib/json.lua' )
 end
+
+status.message:write ( 'Loading json.lua' )
 local json = loadfile ('/lib/json.lua')
+print (json)
 
 --[[
 status.message:write ( 'Fetching current version.db' .. (urlOpts or '') )
