@@ -309,9 +309,15 @@ for i, _file in ipairs ( update ) do
     path = "/".. ('/'.._file):match("(.*)/[^/]*")
     if cache [ path ] == nil then
         cache [ path ] = download ( 'https://api.github.com/repos/'.. github_repo ..'/contents'.. path ..'?ref='.. github_branch, false )
-        print ( cache [ path ] )
+        cache [ path ] = json.decode ( cache [ path ] );
     end
-    --download ( _G['path'] ..'/'.. _file, '/'.. _file )
+
+    for i, obj in ipairs ( cache [ path ] ) do
+        if cache [path].path == _file then
+            download ( cache [path].download_url, '/'.. _file )
+        end
+    end
+
     status.bar:set ( i / #update )
 end
 
