@@ -253,7 +253,7 @@ end
 -- Loop though the github object to see where the SHA doesnt match local version
 local update = {}
 for i, obj in pairs ( github ) do
-    if (version [ obj.path ] == nil or version [ obj.path ] ~= obj.sha) or cinvoke ( myAddress, 'exists', '/'.. path ) == false then
+    if obj.type == "blob" and (version [ obj.path ] == nil or version [ obj.path ] ~= obj.sha or cinvoke ( myAddress, 'exists', '/'.. path ) == false) then
         insert ( update, obj.path )
     end
 
@@ -283,9 +283,11 @@ for file,_ in pairs ( version ) do
     purgeEmptyDirectory ( file )
 end
 
+
 status.message:write ('Downloading updates')
 status.bar:clear ()
-prin
+
+local cache = {}
 for i, _file in ipairs ( update ) do
     local path = ''
     local bits = {}
@@ -303,7 +305,13 @@ for i, _file in ipairs ( update ) do
     end
 
     status.message:write ( _file )
-    download ( _G['path'] ..'/'.. _file, '/'.. _file )
+
+    path = "/".. _file:match("(.*)/[^/]*")
+    if cache [ path ] == nil then
+        cache [ path ] = download ( 'https://api.github.com/repos/'.. github_repo ..'/contents'.. path ..'?ref='.. github_branch, false )
+        print ( cache [ path ] )
+    end
+    --download ( _G['path'] ..'/'.. _file, '/'.. _file )
     status.bar:set ( i / #update )
 end
 
