@@ -190,7 +190,7 @@ end
 status.message:write ( 'Loading json.lua' )
 print ('v1')
 if cinvoke ( myAddress, 'exists', '/lib/json.lua' ) == false then
-    download ( path ..'/lib/json.lua' )
+    download ( path ..'/lib/json.lua', '/lib/json.lua' )
 end
 local json = loadfile ('/lib/json.lua')
 
