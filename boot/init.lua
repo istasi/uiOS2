@@ -53,7 +53,7 @@ local status = {
 			if cinvoke ( gpu, 'getBackground' ) ~= self.abColor then cinvoke ( gpu, 'setBackground', self.abColor ) end
 
 			for h = 1,self.size.height do
-				cinvoke ( gpu, 'set', self.position.x,self.position.y + h - 1, str:sub (1,#str * procent) )
+				cinvoke ( gpu, 'set', self.position.x,self.position.y + h - 1, str:sub (1, math.floor (self.size.width * procent) ) )
 			end
 		end,
 	},
@@ -252,13 +252,13 @@ end
 
 -- Loop though the github object to see where the SHA doesnt match local version
 local update = {}
-for file, sha in pairs ( github ) do
-    if (version [ file ] == nil or version [ file ] ~= sha) or cinvoke ( myAddress, 'exists', file ) == false then
-        insert ( update, file )
+for i, obj in pairs ( github ) do
+    if (version [ obj.path ] == nil or version [ obj.path ] ~= obj.sha) or cinvoke ( myAddress, 'exists', '/'.. path ) == false then
+        insert ( update, obj.path )
     end
 
     -- Mark which files exists on github, as the ones left over needs to be deleted
-    version [ file ] = nil
+    version [ obj.path ] = nil
 end
 
 status.message:write ( 'Cleaning up' )
@@ -272,13 +272,11 @@ end
 local at = 0
 for file,_ in pairs ( version ) do
     at = at + 1
-
-    local procent = (at / length) * 100
-    status.bar:set ( procent )
+    status.bar:set ( at / length )
 
     -- Remove file if it exists
     if cinvoke ( myAddress, 'exists', file ) == true then
-        cinvoke ( myAddress, 'remove', file )
+        --cinvoke ( myAddress, 'remove', file )
     end
 
     -- Regardless of whenever the file exists, we need to make sure we dont leave behind empty folders
@@ -287,8 +285,8 @@ end
 
 status.message:write ('Downloading updates')
 status.bar:clear ()
-
-for i, _file in pairs ( list ) do
+prin
+for i, _file in ipairs ( update ) do
     local path = ''
     local bits = {}
 
@@ -305,6 +303,17 @@ for i, _file in pairs ( list ) do
     end
 
     status.message:write ( _file )
-    download ( repo .. _file, _file )
-    status.bar:set ( i / #list )
+    download ( _G['path'] ..'/'.. _file, '/'.. _file )
+    status.bar:set ( i / #update )
 end
+
+-- Generate content of version.db
+local content = ''
+for i,obj in pairs ( github ) do
+    if obj.type == "blob" then
+        content = content.. obj.path .." : ".. obj.sha .."\n"
+    end
+end
+local handle = cinvoke ( myAddress, 'open', '/lib/version.db', 'w' )
+cinvoke ( myAddress, 'write', handle, content )
+cinvoke ( myAddress, 'close', handle )
